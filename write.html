@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>충정일보 - 기사 작성</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="write-page editor-page">
+        <div class="editor-shell">
+            <header class="editor-header-card">
+                <div class="dashboard-brand-wrap">
+                    <div class="brand-mark-wrap brand-mark-small" aria-hidden="true">
+                        <span class="brand-mark"></span>
+                    </div>
+                    <div>
+                        <h1 class="brand-title brand-dark">충정일보</h1>
+                        <p class="header-subtext">관리자 전용 기사 작성 화면입니다.</p>
+                    </div>
+                </div>
+                <a href="/admin" class="text-link editor-back-link">관리자 메인으로 돌아가기</a>
+            </header>
+
+            <section class="editor-intro-card">
+                <p class="welcome-label">ARTICLE EDITOR</p>
+                <h2 class="welcome-title">새 기사를 작성합니다.</h2>
+            </section>
+
+            <div class="write-card editor-card">
+                <form id="writeForm" class="write-form editor-form">
+                    <div class="editor-grid-top">
+                        <div class="form-group form-group-icon">
+                            <label for="title">기사 제목</label>
+                            <span class="field-icon" aria-hidden="true">✎</span>
+                            <input type="text" id="title" name="title" placeholder="기사 제목을 입력하세요" required>
+                        </div>
+
+                        <div class="form-group form-group-icon">
+                            <label for="category">카테고리</label>
+                            <span class="field-icon" aria-hidden="true">▣</span>
+                            <input type="text" id="category" name="category" placeholder="예: 정치, 경제, 사회" required>
+                        </div>
+
+                        <div class="form-group form-group-icon editor-author-field">
+                            <label for="author">기자 이름</label>
+                            <span class="field-icon" aria-hidden="true">👤</span>
+                            <input type="text" id="author" name="author" placeholder="기자 이름을 입력하세요" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group editor-content-group">
+                        <label for="content">기사 본문</label>
+                        <textarea id="content" name="content" placeholder="기사 본문을 입력하세요" required></textarea>
+                    </div>
+
+                    <button type="submit" class="primary-btn editor-submit-btn">기사 등록</button>
+                </form>
+
+                <div id="status" class="status-text editor-status"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('myToken');
+        const writeForm = document.getElementById('writeForm');
+
+        window.onload = async function () {
+            await verifyAdmin();
+        };
+
+        async function verifyAdmin() {
+            if (!token) {
+                location.href = '/';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/verify', {
+                    headers: {
+                        Authorization: 'Bearer ' + token
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success || data.user.role !== 'admin') {
+                    location.href = '/';
+                }
+            } catch (error) {
+                console.error(error);
+                location.href = '/';
+            }
+        }
+
+        writeForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const status = document.getElementById('status');
+            status.textContent = '기사를 등록하는 중입니다...';
+
+            const payload = {
+                title: writeForm.title.value.trim(),
+                category: writeForm.category.value.trim(),
+                author: writeForm.author.value.trim(),
+                content: writeForm.content.value.trim()
+            };
+
+            try {
+                const response = await fetch('/api/news', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: 'Bearer ' + token
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                status.textContent = data.message;
+
+                if (response.ok && data.success) {
+                    setTimeout(() => {
+                        location.href = '/admin';
+                    }, 700);
+                }
+            } catch (error) {
+                console.error(error);
+                status.textContent = '기사 등록 중 오류가 발생했습니다.';
+            }
+        });
+    </script>
+</body>
+</html>

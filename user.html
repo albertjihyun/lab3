@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>충정일보 - 사용자 메인</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="news-page news-dashboard-page">
+        <header class="dashboard-header">
+            <div class="dashboard-brand-wrap">
+                <div class="brand-mark-wrap brand-mark-small" aria-hidden="true">
+                    <span class="brand-mark"></span>
+                </div>
+                <div>
+                    <h1 class="brand-title brand-dark">충정일보</h1>
+                    <p class="header-subtext">오늘의 주요 기사와 속보를 한눈에 확인하세요.</p>
+                </div>
+            </div>
+
+            <div class="dashboard-actions single-action">
+                <button type="button" class="secondary-btn header-btn" id="logoutBtn">로그아웃</button>
+            </div>
+        </header>
+
+        <section class="welcome-panel user-welcome-panel">
+            <div>
+                <p class="welcome-label">USER DASHBOARD</p>
+                <h2 class="welcome-title" id="welcomeText">사용자 확인 중입니다...</h2>
+            </div>
+        </section>
+
+        <div class="status-line dashboard-status" id="status">기사 목록을 불러오는 중입니다...</div>
+        <main id="newsArea"></main>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('myToken');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        logoutBtn.addEventListener('click', function () {
+            localStorage.removeItem('myToken');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userName');
+            location.href = '/';
+        });
+
+        window.onload = async function () {
+            const verified = await verifyUser('user');
+            if (verified) {
+                await loadNews();
+            }
+        };
+
+        async function verifyUser(expectedRole) {
+            if (!token) {
+                location.href = '/';
+                return false;
+            }
+
+            try {
+                const response = await fetch('/api/verify', {
+                    headers: {
+                        Authorization: 'Bearer ' + token
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    location.href = '/';
+                    return false;
+                }
+
+                if (data.user.role !== expectedRole) {
+                    location.href = '/';
+                    return false;
+                }
+
+                document.getElementById('welcomeText').textContent = data.user.user_name + ' 님, 환영합니다.';
+                return true;
+            } catch (error) {
+                console.error(error);
+                location.href = '/';
+                return false;
+            }
+        }
+
+        async function loadNews() {
+            const status = document.getElementById('status');
+            const newsArea = document.getElementById('newsArea');
+
+            try {
+                const response = await fetch('/api/news', {
+                    headers: {
+                        Authorization: 'Bearer ' + token
+                    }
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || '기사 조회 실패');
+                }
+
+                if (!data.length) {
+                    newsArea.innerHTML = '<div class="empty-box">등록된 기사가 없습니다.</div>';
+                    status.textContent = '등록된 기사가 없습니다.';
+                    return;
+                }
+
+                const mainNews = data[0];
+                const sideNews = data.slice(1);
+
+                let sideHtml = '';
+                sideNews.forEach(item => {
+                    sideHtml += `
+                        <article class="story-card side-story-card">
+                            <div class="story-kicker">${escapeHtml(item.category)}</div>
+                            <h3 class="story-title side-story-title">${escapeHtml(item.title)}</h3>
+                            <p class="story-author">기자: ${escapeHtml(item.author)}</p>
+                        </article>
+                    `;
+                });
+
+                if (!sideNews.length) {
+                    sideHtml = '<div class="story-card side-story-card empty-side-card"><p class="story-title side-story-title">추가 기사 없음</p></div>';
+                }
+
+                newsArea.innerHTML = `
+                    <section class="dashboard-grid">
+                        <article class="hero-news-card">
+                            <div class="story-kicker story-kicker-dark">${escapeHtml(mainNews.category)}</div>
+                            <h2 class="hero-news-title">${escapeHtml(mainNews.title)}</h2>
+                            <p class="story-author hero-news-author">기자: ${escapeHtml(mainNews.author)}</p>
+                            <div class="hero-news-content">${escapeHtml(mainNews.content).replace(/\n/g, '<br>')}</div>
+                        </article>
+                        <aside class="side-story-column">${sideHtml}</aside>
+                    </section>
+                `;
+
+                status.textContent = '기사 목록 조회가 완료되었습니다.';
+            } catch (error) {
+                console.error(error);
+                status.textContent = '기사 목록 조회 중 오류가 발생했습니다.';
+                newsArea.innerHTML = '<div class="empty-box">기사를 불러오지 못했습니다.</div>';
+            }
+        }
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+    </script>
+</body>
+</html>

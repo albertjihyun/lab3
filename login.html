@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>충정일보 로그인</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="auth-page auth-page-clean">
+        <div class="auth-shell">
+            <div class="auth-card auth-card-login auth-card-mockup">
+                <div class="auth-head">
+                    <div class="brand-mark-wrap" aria-hidden="true">
+                        <span class="brand-mark"></span>
+                    </div>
+                    <h1 class="brand-title brand-dark">충정일보</h1>
+                    <h2 class="page-title auth-main-title">로그인</h2>
+                </div>
+
+                <form id="loginForm" class="auth-form auth-form-tight">
+                    <div class="form-group form-group-icon">
+                        <label for="user_id" class="sr-only">아이디</label>
+                        <span class="field-icon" aria-hidden="true">＠</span>
+                        <input type="text" id="user_id" name="user_id" placeholder="아이디를 입력하세요" required>
+                    </div>
+
+                    <div class="form-group form-group-icon">
+                        <label for="password" class="sr-only">비밀번호</label>
+                        <span class="field-icon" aria-hidden="true">🔒</span>
+                        <input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요" required>
+                    </div>
+
+                    <button type="submit" class="primary-btn auth-submit-btn">로그인</button>
+                </form>
+
+                <div id="status" class="status-text auth-status"></div>
+
+                <div class="auth-foot auth-foot-stack auth-foot-spacious">
+                    <span class="auth-foot-text">아직 계정이 없으신가요?</span>
+                    <a href="/signup" class="text-link auth-inline-link">회원가입하기</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+
+        loginForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const status = document.getElementById('status');
+            status.textContent = '로그인 중입니다...';
+
+            const payload = {
+                user_id: loginForm.user_id.value.trim(),
+                password: loginForm.password.value.trim()
+            };
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    location.href = '/login-fail';
+                    return;
+                }
+
+                localStorage.setItem('myToken', data.token);
+                localStorage.setItem('userRole', data.role);
+                localStorage.setItem('userName', data.user_name);
+
+                if (data.role === 'admin') {
+                    location.href = '/admin';
+                } else {
+                    location.href = '/user';
+                }
+            } catch (error) {
+                console.error(error);
+                status.textContent = '로그인 중 오류가 발생했습니다.';
+            }
+        });
+    </script>
+</body>
+</html>
